@@ -1,8 +1,8 @@
 package m17.putei.example2;
 
 import java.io.Serializable;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class MapDataCollection implements Serializable {
   
@@ -11,11 +11,11 @@ public class MapDataCollection implements Serializable {
   private final static int HANKEI = 600;
   private final static int CHOKKEI = HANKEI*2+1;
   
-  private Map<Integer,MapData> coordToMapinfo = new HashMap<Integer,MapData>(CHOKKEI*CHOKKEI*4/3+1);
-
+  //private Map<Integer,MapData> coordToMapinfo = new HashMap<Integer,MapData>(CHOKKEI*CHOKKEI*4/3+1);
+  private Map<Integer,MapData> coordToMapinfo = new ConcurrentHashMap<Integer,MapData>(CHOKKEI*CHOKKEI*4/3+1);
   private Dictionary dict = new Dictionary();
   
-  public void register( int x, int y, String player, 
+  public synchronized void register ( int x, int y, String player, 
           String alliance, int level, boolean isNPC, 
           boolean isCapital, boolean isKyoten, boolean isHaika,
           byte wood, byte stone, byte iron, byte rice ) {

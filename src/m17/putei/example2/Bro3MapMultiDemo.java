@@ -1,14 +1,12 @@
 package m17.putei.example2;
 
 import java.io.File;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.io.FileUtils;
 import org.openqa.selenium.WebDriver;
 
 /**
@@ -17,6 +15,8 @@ import org.openqa.selenium.WebDriver;
  * ※君主名が空のときは空地
  * ※フラグは1がTRUE、0がFALSE
  * ※領地レベル、木、石、鉄、糧は領地以外の場合は-1
+ * 
+ * →MapDataCollectionで保存
  */
 public class Bro3MapMultiDemo {
 
@@ -25,11 +25,14 @@ public class Bro3MapMultiDemo {
   
   private static int numThread = 6;
   private static int threadLife = 2*60*60;//スレッドの寿命(秒)
-  private static File outputFile = new File("map-"+Util.getTimestamp()+".csv");
+  
+  //csvも一緒に出力させようとしたらjava.lang.OutOfMemoryErrorが出ちゃう。今回は無理に出力する必要も無いのでOFFにしておく。
+  //private static File outputFile = new File("map-"+Util.getTimestamp()+".csv"); 
+  private static  MapDataCollection map = new MapDataCollection();
   
   public static void main(String[] args) throws Exception {
     StopWatch sw = new StopWatch();    
-    System.out.println("Output file:"+outputFile.getAbsolutePath());
+    //System.out.println("Output file:"+outputFile.getAbsolutePath());
     // 読み込むマップの中心座標を複数指定
     // 上位配列の長さ分スレッドが増える
     //(-575,-575), (-575,-524), (-575,-473), ...
@@ -47,7 +50,9 @@ public class Bro3MapMultiDemo {
     ExecutorService exec = Executors.newFixedThreadPool(numThread);
     for (int i=0; i<numThread; i++) {
       List<String> xyPairs = xyPairsPerThread.get(i);
-      exec.execute(new Bro3MapDemoThread(xyPairs, outputFile, i+1));
+      exec.execute(new Bro3MapDemoThread(xyPairs, 
+      		//outputFile, 
+      		i+1,map));
     }
     try {
       exec.shutdown();
@@ -61,21 +66,28 @@ public class Bro3MapMultiDemo {
       System.out.println("awaitTermination interrupted: " + e);
       exec.shutdownNow();
     }
+    
+   // System.out.println("出力ファイル:"+outputFile.getAbsolutePath());
+    
+    //MapDataCollectionをディスクに保存、圧縮
+    IOUtil<MapDataCollection> ioutil = new IOUtil<MapDataCollection>();
+    ioutil.saveZippedData(map, new File("target/map.zip"));
     System.out.println("----------- 全処理終了 -----------");
     sw.stop("合計計処理時間");
-    System.out.println("出力ファイル:"+outputFile.getAbsolutePath());
   }
 }
 
 class Bro3MapDemoThread implements Runnable {
   private List<String> xyPairs;
-  private File f;
+ // private File f;
   private int threadNumber;
+  private MapDataCollection map;
   
-  public Bro3MapDemoThread(List<String> xyPairs, File f, int threadNumber) {
+  public Bro3MapDemoThread(List<String> xyPairs, int threadNumber,MapDataCollection map) {
     this.xyPairs = xyPairs;
-    this.f = f;
+   // this.f = f;
     this.threadNumber = threadNumber;
+    this.map = map;
   }
 
   public void run() {
@@ -91,9 +103,9 @@ class Bro3MapDemoThread implements Runnable {
         String mapURL = "http://m" + CommonSettings.SERVER + ".3gokushi.jp/map.php?x=" + x + "&y="
                 + y + "&type=4";
         String srcOf51x51Map = FileDownloader.getContentFromUrlSlow(d, mapURL);
-        MapDataCollection map = new MapDataCollection();//declare here to save memory space
+       // MapDataCollection map = new MapDataCollection();//declare here to save memory space
         ParserFor51x51Map.loadRawHtml(map, srcOf51x51Map);
-        FileUtils.write(f, map.toCSV(), "utf-8", true);//append csv content to file
+       // FileUtils.write(f, map.toCSV(), "utf-8", true);//append csv content to file
         sw.stop("スレッドID="+threadNumber+"が ("+x+","+y+") 中心の51×51マップから領地情報を取得しました。　("+(++counter)+"/"+xyPairs.size()+")");
       } catch (Exception e) {
         e.printStackTrace();
